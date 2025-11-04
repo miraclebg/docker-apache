@@ -15,6 +15,7 @@ USER root
 
 RUN apt-get update \
   && apt-get install -y apache2 curl acl locales ImageMagick gettext wget \
+    msmtp msmtp-mta \
     php5 libapache2-mod-php5 \
     php5-cli php5-mysqlnd php5-pgsql php5-intl php5-sqlite php5-redis php5-xsl php5-geoip \
     php5-apcu php5-intl php5-imagick php5-mcrypt php5-json php5-gd php5-curl php5-imap \
@@ -30,9 +31,25 @@ RUN apt-get update \
 
 RUN groupadd -g "$APP_ID" app \
     && useradd -g "$APP_ID" -u "$APP_ID" -d /var/www -s /bin/bash app \
-    && mkdir -p /var/log/apache2 && chown -R app:app /var/log/apache2 /var/www/html /var/run/apache2 /var/lock/apache2
+    && mkdir -p /var/log/apache2 && chown -R app:app /var/log/apache2 /var/www/html /var/run/apache2 /var/lock/apache2 \
+    && mkdir -p /var/log \
+    && touch /var/log/msmtp.log \
+    && chmod 666 /var/log/msmtp.log \
+    && cat > /etc/msmtprc <<'EOF'
+defaults
+auth off
+tls off
+logfile /var/log/msmtp.log
 
-RUN cd /tmp && curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
+account local
+host 127.0.0.1
+port 25
+from root@localhost
+
+account default : local
+EOF
+
+RUN chmod 644 /etc/msmtprc && cd /tmp && curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
 RUN rm -rf /tmp/pear /var/cache/apt /var/lib/apt/lists/*
 
 USER app:app
